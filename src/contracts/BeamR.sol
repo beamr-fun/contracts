@@ -24,7 +24,23 @@ contract BeamR is IBeamR, AccessControl {
     bytes32 public constant ROOT_ADMIN_ROLE = keccak256("ROOT_ADMIN_ROLE");
     bytes32 public constant POOL_ADMIN_ROLE = keccak256("POOL_ADMIN_ROLE");
 
-    constructor(address[] memory _poolAdmins, address[] memory _rootAdmins, address _gdaAddress) {}
+    constructor(address[] memory _poolAdmins, address[] memory _rootAdmins, address _gdaAddress) {
+        gda = IGeneralDistributionAgreementV1(_gdaAddress);
+
+        for (uint256 i; i < _poolAdmins.length;) {
+            _setupRole(POOL_ADMIN_ROLE, _poolAdmins[i]);
+            unchecked {
+                i++;
+            }
+        }
+
+        for (uint256 i; i < _rootAdmins.length;) {
+            _setupRole(ROOT_ADMIN_ROLE, _rootAdmins[i]);
+            unchecked {
+                i++;
+            }
+        }
+    }
 
     function createPool(
         ISuperToken _poolSuperToken,
@@ -35,7 +51,9 @@ contract BeamR is IBeamR, AccessControl {
         int96 _flowRate,
         Metadata memory _metadata
     ) external returns (ISuperfluidPool beamPool) {
-        require(_isRole(POOL_ADMIN_ROLE, _admin), Unauthorized());
+        if (!_isValidRole(POOL_ADMIN_ROLE, _admin)) {
+            revert Unauthorized();
+        }
 
         beamPool = SuperTokenV1Library.createPoolWithCustomERC20Metadata(
             _poolSuperToken, address(this), _poolConfig, _erc20Metadata
@@ -70,8 +88,10 @@ contract BeamR is IBeamR, AccessControl {
         }
     }
 
-    function _isRole(bytes32 _role, address _account) internal view returns (bool) {
-        require(_role == ROOT_ADMIN_ROLE || _role == POOL_ADMIN_ROLE, "Invalid role");
+    function _isValidRole(bytes32 _role, address _account) internal view returns (bool) {
+        if (_role != ROOT_ADMIN_ROLE && _role != POOL_ADMIN_ROLE) {
+            revert Unauthorized();
+        }
 
         return hasRole(_role, _account);
     }
