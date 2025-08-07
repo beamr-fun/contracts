@@ -8,7 +8,7 @@ contract Accounts is StdCheats {
     // Vote Admins
     // //////////////////////
 
-    function dummyDao() public returns (address) {
+    function beamTeam() public returns (address) {
         return makeAddr("dummy_dao");
     }
 

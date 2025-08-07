@@ -5,8 +5,6 @@ import {
     PoolConfig,
     PoolERC20Metadata
 } from "@superfluid/ethereum-contracts/contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
-// import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-// import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SuperTokenV1Library} from "@superfluid/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import {IBeamR} from "../interfaces/IBeamR.sol";
@@ -15,6 +13,8 @@ import {
     ISuperfluidPool,
     ISuperToken
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+
+// import {GDAv1Forwarder} from "@superfluid/ethereum-contracts/contracts/utils/GDAv1Forwarder.sol";
 
 contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
@@ -62,8 +62,6 @@ contract BeamR is IBeamR, AccessControl {
         emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _metadata);
 
         _updateMembersUnits(beamPool, _members);
-
-        // Let's test and see if this works
 
         if (_flowRate > 0) {
             _distributeFlow(_poolSuperToken, msg.sender, beamPool, _flowRate);
