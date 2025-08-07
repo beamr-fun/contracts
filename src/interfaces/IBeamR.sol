@@ -22,5 +22,7 @@ interface IBeamR {
 
     event PoolCreated(address pool, address token, PoolConfig config, Metadata metadata);
 
+    event FlowDistributed(address poolSuperToken, address gdaPool, int96 flowRate);
+
     error Unauthorized();
 }

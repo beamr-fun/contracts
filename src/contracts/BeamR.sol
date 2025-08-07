@@ -5,21 +5,26 @@ import {
     PoolConfig,
     PoolERC20Metadata
 } from "@superfluid/ethereum-contracts/contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+// import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+// import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SuperTokenV1Library} from "@superfluid/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import {IBeamR} from "../interfaces/IBeamR.sol";
 import {
+    IGeneralDistributionAgreementV1,
     ISuperfluidPool,
     ISuperToken
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 
-contract BeamR is IBeamR, Initializable, Ownable, AccessControl {
+contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
+
+    IGeneralDistributionAgreementV1 public gda;
 
     bytes32 public constant ROOT_ADMIN_ROLE = keccak256("ROOT_ADMIN_ROLE");
     bytes32 public constant POOL_ADMIN_ROLE = keccak256("POOL_ADMIN_ROLE");
+
+    constructor(address[] memory _poolAdmins, address[] memory _rootAdmins, address _gdaAddress) {}
 
     function createPool(
         ISuperToken _poolSuperToken,
@@ -27,6 +32,7 @@ contract BeamR is IBeamR, Initializable, Ownable, AccessControl {
         PoolERC20Metadata memory _erc20Metadata,
         Member[] memory _members,
         address _admin,
+        int96 _flowRate,
         Metadata memory _metadata
     ) external returns (ISuperfluidPool beamPool) {
         require(_isRole(POOL_ADMIN_ROLE, _admin), Unauthorized());
@@ -38,6 +44,20 @@ contract BeamR is IBeamR, Initializable, Ownable, AccessControl {
         emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _metadata);
 
         _updateMembersUnits(beamPool, _members);
+
+        // Let's test and see if this works
+
+        if (_flowRate > 0) {
+            _distributeFlow(_poolSuperToken, msg.sender, beamPool, _flowRate);
+        }
+    }
+
+    function _distributeFlow(ISuperToken _poolSuperToken, address _sender, ISuperfluidPool _gdaPool, int96 _flowRate)
+        internal
+    {
+        gda.distributeFlow(_poolSuperToken, _sender, _gdaPool, _flowRate, new bytes(0));
+
+        emit FlowDistributed(address(_poolSuperToken), address(_gdaPool), _flowRate);
     }
 
     function _updateMembersUnits(ISuperfluidPool _gdaPool, Member[] memory _members) internal {
