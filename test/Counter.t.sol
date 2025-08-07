@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
-import {Counter} from "../src/Counter.sol";
+import {BeamR} from "../src/Counter.sol";
 
 contract CounterTest is Test {
-    Counter public counter;
+    BeamR public counter;
 
     function setUp() public {
-        counter = new Counter();
+        counter = new BeamR();
         counter.setNumber(0);
     }
 
