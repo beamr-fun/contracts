@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
-import {BeamR} from "../src/Counter.sol";
+import {BeamR} from "../src/contracts/BeamR.sol";
 
 contract CounterTest is Test {
     BeamR public counter;
