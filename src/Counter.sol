@@ -6,6 +6,11 @@ import {
 } from
     "@superfluid/ethereum-contracts/contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 
+import {
+    ISuperfluidPool,
+    ISuperToken
+} from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+
 
 pragma solidity ^0.8.23;
 
