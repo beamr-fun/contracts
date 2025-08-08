@@ -54,6 +54,7 @@ contract BeamR is IBeamR, AccessControl {
         // Allows the creator to manage pool admin role grant and revoke
         _setRoleAdmin(poolAdminKey(address(beamPool)), poolAdminKey(address(beamPool)));
 
+        // Event is emitted before updating member units to ensure indexer can easily match
         emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, _metadata);
 
         for (uint256 i; i < _members.length;) {
