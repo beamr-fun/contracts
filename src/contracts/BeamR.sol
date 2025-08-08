@@ -43,14 +43,9 @@ contract BeamR is IBeamR, AccessControl {
         PoolConfig memory _poolConfig,
         PoolERC20Metadata memory _erc20Metadata,
         Member[] memory _members,
-        address _admin,
         address _creator,
         Metadata memory _metadata
     ) external returns (ISuperfluidPool beamPool) {
-        if (!hasRole(ADMIN_ROLE, _admin)) {
-            revert Unauthorized();
-        }
-
         beamPool = SuperTokenV1Library.createPoolWithCustomERC20Metadata(
             _poolSuperToken, address(this), _poolConfig, _erc20Metadata
         );
@@ -61,27 +56,49 @@ contract BeamR is IBeamR, AccessControl {
 
         emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, _metadata);
 
-        _updateMembersUnits(beamPool, _members);
-    }
-
-    function updateMemberUnits(Member[] memory _members, address _poolAddress) external {
-        if (!hasRole(ADMIN_ROLE, msg.sender) && !isPoolAdmin(msg.sender, _poolAddress)) {
-            revert Unauthorized();
-        }
-
-        ISuperfluidPool gdaPool = ISuperfluidPool(_poolAddress);
-
-        _updateMembersUnits(gdaPool, _members);
-    }
-
-    function _updateMembersUnits(ISuperfluidPool _gdaPool, Member[] memory _members) internal {
         for (uint256 i; i < _members.length;) {
-            _gdaPool.updateMemberUnits(_members[i].account, _members[i].units);
+            if (_members[i].units > 0) {
+                beamPool.updateMemberUnits(_members[i].account, _members[i].units);
+            }
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses) external {
+        for (uint256 i; i < poolAddresses.length;) {
+            address _poolAddress = poolAddresses[i];
+
+            if (!hasRole(ADMIN_ROLE, msg.sender) && !isPoolAdmin(msg.sender, _poolAddress)) {
+                revert Unauthorized();
+            }
+
+            ISuperfluidPool pool = ISuperfluidPool(poolAddresses[i]);
+
+            pool.updateMemberUnits(_members[i].account, _members[i].units);
 
             unchecked {
                 i++;
             }
         }
+    }
+
+    function rescuePoolCreator(address _poolAddress, address _newCreator, address _currentCreator)
+        external
+        onlyRole(ROOT_ADMIN_ROLE)
+    {
+        _revokeRole(poolAdminKey(_poolAddress), _currentCreator);
+
+        // Grant the new creator the pool admin role
+        _grantRole(poolAdminKey(_poolAddress), _newCreator);
+    }
+
+    function updateMetadata(address _poolAddress, Metadata memory _metadata)
+        external
+        onlyRole(poolAdminKey(_poolAddress))
+    {
+        emit PoolMetadataUpdated(_poolAddress, _metadata);
     }
 
     function isPoolAdmin(address _account, address _poolAddress) public view returns (bool) {

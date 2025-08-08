@@ -175,7 +175,6 @@ contract BeamRTest is Test, Accounts {
             PoolConfig({transferabilityForUnitsOwner: false, distributionFromAnyAddress: true}),
             PoolERC20Metadata({name: "BeamR Pool Token 2", symbol: "BPT2", decimals: 18}),
             members2,
-            admin1(),
             user2(),
             IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
         );
@@ -232,7 +231,6 @@ contract BeamRTest is Test, Accounts {
             PoolConfig({transferabilityForUnitsOwner: false, distributionFromAnyAddress: true}),
             PoolERC20Metadata({name: "BeamR Pool Token", symbol: "BPT", decimals: 18}),
             members,
-            admin1(),
             user1(),
             IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
         );
