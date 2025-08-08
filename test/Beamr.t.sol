@@ -158,6 +158,52 @@ contract BeamRTest is Test, Accounts {
         assertEq(pool.getDisconnectedBalance(uint32(block.timestamp + 10)), 1000);
     }
 
+    function test_updateMemberUnits() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+
+        // Update user1's units to 10
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 10});
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(user1());
+        _beamR.updateMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 10);
+        assertEq(pool.getUnits(admin1()), 5);
+    }
+
+    function test_updateMemberUnits_byAdmin() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+
+        // Update user1's units to 10 by admin1
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 10});
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(admin1());
+        _beamR.updateMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 10);
+        assertEq(pool.getUnits(admin1()), 5);
+    }
+
     //////////////////////////////////
     ///// REVERTS ///////////////////
     /////////////////////////////////
