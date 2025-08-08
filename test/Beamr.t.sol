@@ -92,7 +92,8 @@ contract BeamRTest is Test, Accounts {
             PoolERC20Metadata({name: "BeamR Pool Token", symbol: "BPT", decimals: 18}),
             members,
             admin1(),
-            user1()
+            user1(),
+            IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
         );
     }
 

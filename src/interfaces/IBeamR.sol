@@ -20,7 +20,7 @@ interface IBeamR {
         uint128 units;
     }
 
-    event PoolCreated(address pool, address token, PoolConfig config, address creator);
+    event PoolCreated(address pool, address token, PoolConfig config, address creator, Metadata metadata);
 
     event FlowDistributed(address poolSuperToken, address gdaPool, int96 flowRate);
 
