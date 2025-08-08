@@ -9,7 +9,6 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SuperTokenV1Library} from "@superfluid/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import {IBeamR} from "../interfaces/IBeamR.sol";
 import {
-    IGeneralDistributionAgreementV1,
     ISuperfluidPool,
     ISuperToken
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
@@ -19,16 +18,14 @@ import {
 contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
 
-    IGeneralDistributionAgreementV1 public gda;
-
     bytes32 public constant ROOT_ADMIN_ROLE = keccak256("ROOT_ADMIN_ROLE");
-    bytes32 public constant POOL_ADMIN_ROLE = keccak256("POOL_ADMIN_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    constructor(address[] memory _poolAdmins, address[] memory _rootAdmins, address _gdaAddress) {
-        gda = IGeneralDistributionAgreementV1(_gdaAddress);
+    mapping(address => bytes32) public poolAdminRoles;
 
+    constructor(address[] memory _poolAdmins, address[] memory _rootAdmins) {
         for (uint256 i; i < _poolAdmins.length;) {
-            _setupRole(POOL_ADMIN_ROLE, _poolAdmins[i]);
+            _setupRole(ADMIN_ROLE, _poolAdmins[i]);
             unchecked {
                 i++;
             }
@@ -48,10 +45,9 @@ contract BeamR is IBeamR, AccessControl {
         PoolERC20Metadata memory _erc20Metadata,
         Member[] memory _members,
         address _admin,
-        int96 _flowRate,
-        Metadata memory _metadata
+        address _creator
     ) external returns (ISuperfluidPool beamPool) {
-        if (!_isValidRole(POOL_ADMIN_ROLE, _admin)) {
+        if (!_isValidRole(ADMIN_ROLE, _admin)) {
             revert Unauthorized();
         }
 
@@ -59,21 +55,9 @@ contract BeamR is IBeamR, AccessControl {
             _poolSuperToken, address(this), _poolConfig, _erc20Metadata
         );
 
-        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _metadata);
+        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator);
 
         _updateMembersUnits(beamPool, _members);
-
-        if (_flowRate > 0) {
-            _distributeFlow(_poolSuperToken, msg.sender, beamPool, _flowRate);
-        }
-    }
-
-    function _distributeFlow(ISuperToken _poolSuperToken, address _sender, ISuperfluidPool _gdaPool, int96 _flowRate)
-        internal
-    {
-        gda.distributeFlow(_poolSuperToken, _sender, _gdaPool, _flowRate, new bytes(0));
-
-        emit FlowDistributed(address(_poolSuperToken), address(_gdaPool), _flowRate);
     }
 
     function _updateMembersUnits(ISuperfluidPool _gdaPool, Member[] memory _members) internal {
@@ -87,7 +71,7 @@ contract BeamR is IBeamR, AccessControl {
     }
 
     function _isValidRole(bytes32 _role, address _account) internal view returns (bool) {
-        if (_role != ROOT_ADMIN_ROLE && _role != POOL_ADMIN_ROLE) {
+        if (_role != ROOT_ADMIN_ROLE && _role != ADMIN_ROLE) {
             revert Unauthorized();
         }
 

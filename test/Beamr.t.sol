@@ -7,7 +7,6 @@ import {IBeamR} from "../src/interfaces/IBeamR.sol";
 import {Accounts} from "./setup/Accounts.sol";
 
 import {
-    IGeneralDistributionAgreementV1,
     ISuperToken,
     ISuperfluidPool
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
@@ -20,16 +19,13 @@ import {
 import {IPureSuperToken} from "@superfluid/ethereum-contracts/contracts/interfaces/tokens/IPureSuperToken.sol";
 
 contract BeamRTest is Test, Accounts {
-    // GDA V1 address on Base
-    address constant GDA_V1 = 0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08;
     // Using Aleph.im V2 token on Base to test
-    address constant TOKEN_ADDRESS = 0xc0Fbc4967259786C743361a5885ef49380473dCF;
+    address constant TOKEN_ADDRESS = 0x14951082e5dD1Fc46973Ed812Ee531d0321C74B5;
 
     // holds 19,200 ALEPH tokens
     // chose because the round number is easy to remember
     address constant WHALE = 0x83Be2Ec830E1D1be35CBD624c3d1F7591ad19369;
 
-    IGeneralDistributionAgreementV1 public gda;
     BeamR public _beamR;
     ISuperToken public token;
 
@@ -42,42 +38,61 @@ contract BeamRTest is Test, Accounts {
         poolAdmins[0] = admin1(); // Replace with actual pool admin address
         rootAdmins[0] = beamTeam(); // Replace with actual root admin address
 
-        _beamR = new BeamR(poolAdmins, rootAdmins, GDA_V1);
+        _beamR = new BeamR(poolAdmins, rootAdmins);
 
-        gda = _beamR.gda();
-
-        assertTrue(_beamR.hasRole(_beamR.POOL_ADMIN_ROLE(), admin1()));
+        assertTrue(_beamR.hasRole(_beamR.ADMIN_ROLE(), admin1()));
         assertTrue(_beamR.hasRole(_beamR.ROOT_ADMIN_ROLE(), beamTeam()));
+
+        assertFalse(_beamR.hasRole(_beamR.ADMIN_ROLE(), someGuy()));
+        assertFalse(_beamR.hasRole(_beamR.ROOT_ADMIN_ROLE(), someGuy()));
 
         // token = IPureSuperToken(TOKEN_ADDRESS);
         token = ISuperToken(TOKEN_ADDRESS);
 
-        // assertEq(gda.agreementType(), keccak256("org.superfluid-finance.agreements.GeneralDistributionAgreement.v1"));
+        console.log(token.symbol()); // Ensure the token is loaded correctly
 
-        _setupHolders();
+        // _setupHolders();
     }
 
     function test_createPool() public {
-        _createPool_noFlow();
+        ISuperfluidPool pool = _createPool();
+
+        // assertTrue(pool.distributionFromAnyAddress());
+        // assertFalse(pool.transferabilityForUnitsOwner());
+
+        // assertEq(pool.getTotalUnits(), 10);
+        // assertEq(pool.getUnits(user1()), 5);
+        // assertEq(pool.getUnits(admin1()), 5);
+        // assertEq(address(_beamR), pool.admin());
+        // assertEq(address(pool.superToken()), address(token));
+        // assertEq(pool.getTotalDisconnectedUnits(), 10);
+        // assertEq(pool.getTotalConnectedUnits(), 0);
+        // assertEq(pool.getTotalFlowRate(), 0);
+        // assertEq(pool.getTotalConnectedFlowRate(), 0);
+        // assertEq(pool.getTotalDisconnectedFlowRate(), 0);
+        // assertEq(pool.getDisconnectedBalance(uint32(block.timestamp)), 0);
+        // assertEq(pool.getTotalAmountReceivedByMember(user1()), 0);
+        // assertEq(pool.getTotalAmountReceivedByMember(admin1()), 0);
+        // assertEq(pool.getMemberFlowRate(user1()), 0);
+        // assertEq(pool.getMemberFlowRate(admin1()), 0);
     }
 
-    function _createPool_noFlow() internal returns (address _poolAddress) {
-        vm.startPrank(user1());
-
+    function _createPool() internal returns (ISuperfluidPool _pool) {
         BeamR.Member[] memory members = new BeamR.Member[](2);
 
         members[0] = IBeamR.Member({account: user1(), units: 5});
 
         members[1] = IBeamR.Member({account: admin1(), units: 5});
 
-        _beamR.createPool(
+        vm.prank(admin1());
+
+        _pool = _beamR.createPool(
             token,
             PoolConfig({transferabilityForUnitsOwner: false, distributionFromAnyAddress: true}),
             PoolERC20Metadata({name: "BeamR Pool Token", symbol: "BPT", decimals: 18}),
             members,
             admin1(),
-            254,
-            IBeamR.Metadata({protocol: 1, pointer: "https://example.com/pool-metadata"})
+            user1()
         );
     }
 
