@@ -22,9 +22,20 @@ import {
 
 import {IPureSuperToken} from "@superfluid/ethereum-contracts/contracts/interfaces/tokens/IPureSuperToken.sol";
 
+interface IGDAForwader {
+    function distributeFlow(
+        ISuperToken token,
+        address sender,
+        ISuperfluidPool pool,
+        int96 flowRate,
+        bytes calldata userData
+    ) external;
+}
+
 contract BeamRTest is Test, Accounts {
     // Using STREME token on Base to test
     address constant TOKEN_ADDRESS = 0x3B3Cd21242BA44e9865B066e5EF5d1cC1030CC58;
+    address constant FOWARDER_ADDRESS = 0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08;
 
     // holds 500,000,000 Streme
     // chose because the round number is easy to remember
@@ -32,6 +43,7 @@ contract BeamRTest is Test, Accounts {
 
     BeamR public _beamR;
     ISuperToken public token;
+    IGDAForwader public gdaForwarder;
 
     function setUp() public {
         vm.createSelectFork({blockNumber: 33905653, urlOrAlias: "base"});
@@ -54,6 +66,7 @@ contract BeamRTest is Test, Accounts {
         assertEq(_beamR.getRoleAdmin(_beamR.ROOT_ADMIN_ROLE()), 0x00);
 
         token = ISuperToken(TOKEN_ADDRESS);
+        gdaForwarder = IGDAForwader(FOWARDER_ADDRESS);
 
         _setupHolders();
     }
@@ -124,6 +137,25 @@ contract BeamRTest is Test, Accounts {
 
         // Verify that admin2 now has the ADMIN_ROLE
         assertTrue(_beamR.hasRole(_beamR.ADMIN_ROLE(), admin2()));
+    }
+
+    function test_distributeFlow() public {
+        ISuperfluidPool pool = _createPool();
+
+        _distributeFlow(pool);
+
+        assertEq(pool.getMemberFlowRate(user1()), 50);
+        assertEq(pool.getMemberFlowRate(admin1()), 50);
+        assertEq(pool.getTotalFlowRate(), 100);
+        assertEq(pool.getTotalDisconnectedUnits(), 10);
+        assertEq(pool.getTotalConnectedUnits(), 0);
+        assertEq(pool.getTotalConnectedFlowRate(), 0);
+        assertEq(pool.getTotalDisconnectedFlowRate(), 100);
+
+        assertEq(pool.getTotalAmountReceivedByMember(user1()), 0);
+        assertEq(pool.getTotalAmountReceivedByMember(admin1()), 0);
+
+        assertEq(pool.getDisconnectedBalance(uint32(block.timestamp + 10)), 1000);
     }
 
     //////////////////////////////////
@@ -234,6 +266,13 @@ contract BeamRTest is Test, Accounts {
             user1(),
             IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
         );
+    }
+
+    function _distributeFlow(ISuperfluidPool pool) internal {
+        vm.startPrank(user1());
+        gdaForwarder.distributeFlow(token, user1(), pool, 100, new bytes(0));
+
+        vm.stopPrank();
     }
 
     function _setupHolders() internal {
