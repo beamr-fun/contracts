@@ -6,6 +6,10 @@ import {BeamR} from "../src/contracts/BeamR.sol";
 import {IBeamR} from "../src/interfaces/IBeamR.sol";
 import {Accounts} from "./setup/Accounts.sol";
 
+// import "@Strings.sol";
+
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
 import {
     ISuperToken,
     ISuperfluidPool
@@ -19,12 +23,12 @@ import {
 import {IPureSuperToken} from "@superfluid/ethereum-contracts/contracts/interfaces/tokens/IPureSuperToken.sol";
 
 contract BeamRTest is Test, Accounts {
-    // Using Aleph.im V2 token on Base to test
-    address constant TOKEN_ADDRESS = 0x14951082e5dD1Fc46973Ed812Ee531d0321C74B5;
+    // Using STREME token on Base to test
+    address constant TOKEN_ADDRESS = 0x3B3Cd21242BA44e9865B066e5EF5d1cC1030CC58;
 
-    // holds 19,200 ALEPH tokens
+    // holds 500,000,000 Streme
     // chose because the round number is easy to remember
-    address constant WHALE = 0x83Be2Ec830E1D1be35CBD624c3d1F7591ad19369;
+    address constant WHALE = 0x22C64e05aabDE039A7c9792d6886D8C2D714b2E9;
 
     BeamR public _beamR;
     ISuperToken public token;
@@ -46,36 +50,173 @@ contract BeamRTest is Test, Accounts {
         assertFalse(_beamR.hasRole(_beamR.ADMIN_ROLE(), someGuy()));
         assertFalse(_beamR.hasRole(_beamR.ROOT_ADMIN_ROLE(), someGuy()));
 
-        // token = IPureSuperToken(TOKEN_ADDRESS);
+        assertEq(_beamR.getRoleAdmin(_beamR.ADMIN_ROLE()), _beamR.ROOT_ADMIN_ROLE());
+        assertEq(_beamR.getRoleAdmin(_beamR.ROOT_ADMIN_ROLE()), 0x00);
+
         token = ISuperToken(TOKEN_ADDRESS);
 
-        console.log(token.symbol()); // Ensure the token is loaded correctly
-
-        // _setupHolders();
+        _setupHolders();
     }
 
     function test_createPool() public {
         ISuperfluidPool pool = _createPool();
 
-        // assertTrue(pool.distributionFromAnyAddress());
-        // assertFalse(pool.transferabilityForUnitsOwner());
-
-        // assertEq(pool.getTotalUnits(), 10);
-        // assertEq(pool.getUnits(user1()), 5);
-        // assertEq(pool.getUnits(admin1()), 5);
-        // assertEq(address(_beamR), pool.admin());
-        // assertEq(address(pool.superToken()), address(token));
-        // assertEq(pool.getTotalDisconnectedUnits(), 10);
-        // assertEq(pool.getTotalConnectedUnits(), 0);
-        // assertEq(pool.getTotalFlowRate(), 0);
-        // assertEq(pool.getTotalConnectedFlowRate(), 0);
-        // assertEq(pool.getTotalDisconnectedFlowRate(), 0);
-        // assertEq(pool.getDisconnectedBalance(uint32(block.timestamp)), 0);
-        // assertEq(pool.getTotalAmountReceivedByMember(user1()), 0);
-        // assertEq(pool.getTotalAmountReceivedByMember(admin1()), 0);
-        // assertEq(pool.getMemberFlowRate(user1()), 0);
-        // assertEq(pool.getMemberFlowRate(admin1()), 0);
+        // TEST AND RECORD POOL STATE
+        assertTrue(pool.distributionFromAnyAddress());
+        assertFalse(pool.transferabilityForUnitsOwner());
+        assertEq(pool.getTotalUnits(), 10);
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+        assertEq(address(_beamR), pool.admin());
+        assertEq(address(pool.superToken()), address(token));
+        assertEq(pool.getTotalDisconnectedUnits(), 10);
+        assertEq(pool.getTotalConnectedUnits(), 0);
+        assertEq(pool.getTotalFlowRate(), 0);
+        assertEq(pool.getTotalConnectedFlowRate(), 0);
+        assertEq(pool.getTotalDisconnectedFlowRate(), 0);
+        assertEq(pool.getDisconnectedBalance(uint32(block.timestamp)), 0);
+        assertEq(pool.getTotalAmountReceivedByMember(user1()), 0);
+        assertEq(pool.getTotalAmountReceivedByMember(admin1()), 0);
+        assertEq(pool.getMemberFlowRate(user1()), 0);
+        assertEq(pool.getMemberFlowRate(admin1()), 0);
     }
+
+    function test_createPool_role() public {
+        ISuperfluidPool pool = _createPool();
+
+        assertTrue(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), user1()));
+
+        assertFalse(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), admin1()));
+        assertFalse(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), beamTeam()));
+        assertFalse(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), someGuy()));
+
+        // Check that the pool admin role is set correctly
+        assertEq(_beamR.getRoleAdmin(_beamR.poolAdminKey(address(pool))), _beamR.poolAdminKey(address(pool)));
+    }
+
+    function test_createPool_roleMgmt() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check that user1 can manage the pool admin role
+        assertTrue(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), user1()));
+
+        // user1 should be able to grant admin role to user2
+        vm.startPrank(user1());
+        _beamR.grantRole(_beamR.poolAdminKey(address(pool)), user2());
+
+        assertTrue(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), user2()));
+
+        // user1 should be able to revoke admin role from user2
+        _beamR.revokeRole(_beamR.poolAdminKey(address(pool)), user2());
+        vm.stopPrank();
+
+        assertFalse(_beamR.hasRole(_beamR.poolAdminKey(address(pool)), user2()));
+    }
+
+    function test_rootGrantsAdminRole() public {
+        // Check that admin2 does not have the ADMIN_ROLE initially
+        assertFalse(_beamR.hasRole(_beamR.ADMIN_ROLE(), admin2()));
+
+        // Root admin grants ADMIN_ROLE to admin1
+        vm.startPrank(beamTeam());
+        _beamR.grantRole(_beamR.ADMIN_ROLE(), admin2());
+        vm.stopPrank();
+
+        // Verify that admin2 now has the ADMIN_ROLE
+        assertTrue(_beamR.hasRole(_beamR.ADMIN_ROLE(), admin2()));
+    }
+
+    //////////////////////////////////
+    ///// REVERTS ///////////////////
+    /////////////////////////////////
+
+    function testRevert_adminGrantsRole_UNAUTHORIZED() public {
+        string memory expectedError = _createOZAccessControlErrorMessage(admin1(), _beamR.ROOT_ADMIN_ROLE());
+
+        _manuallyTestGrantRoleError(expectedError, admin1(), someOtherGuy(), _beamR.ADMIN_ROLE());
+    }
+
+    function testRevert_poolAdmin_grantRole_UNAUTHORIZED() public {
+        ISuperfluidPool pool = _createPool();
+        bytes32 poolRole = _beamR.poolAdminKey(address(pool));
+
+        string memory expectedError = _createOZAccessControlErrorMessage(someGuy(), poolRole);
+        vm.startPrank(someGuy());
+        vm.expectRevert(bytes(expectedError));
+        _beamR.grantRole(poolRole, someOtherGuy());
+        vm.stopPrank();
+    }
+
+    function testRevert_poolAdmin_revokeRole_UNAUTHORIZED() public {
+        ISuperfluidPool pool = _createPool();
+        bytes32 poolRole = _beamR.poolAdminKey(address(pool));
+
+        string memory expectedError = _createOZAccessControlErrorMessage(user2(), poolRole);
+
+        vm.startPrank(user2());
+        vm.expectRevert(bytes(expectedError));
+        _beamR.revokeRole(poolRole, user1());
+        vm.stopPrank();
+    }
+
+    function testRevert_poolAdmin_tryAccessOtherPools() public {
+        ISuperfluidPool pool1 = _createPool();
+
+        // Create a second pool with different members
+        BeamR.Member[] memory members2 = new BeamR.Member[](2);
+
+        members2[0] = IBeamR.Member({account: user2(), units: 5});
+        members2[1] = IBeamR.Member({account: admin1(), units: 5});
+
+        vm.prank(admin1());
+
+        ISuperfluidPool pool2 = _beamR.createPool(
+            token,
+            PoolConfig({transferabilityForUnitsOwner: false, distributionFromAnyAddress: true}),
+            PoolERC20Metadata({name: "BeamR Pool Token 2", symbol: "BPT2", decimals: 18}),
+            members2,
+            admin1(),
+            user2(),
+            IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
+        );
+
+        bytes32 poolRole1 = _beamR.poolAdminKey(address(pool1));
+        bytes32 poolRole2 = _beamR.poolAdminKey(address(pool2));
+
+        // user1 is admin of pool1 but not pool2
+        assertTrue(_beamR.hasRole(poolRole1, user1()));
+        assertFalse(_beamR.hasRole(poolRole2, user1()));
+
+        // user2 is admin of pool2 but not pool1
+        assertTrue(_beamR.hasRole(_beamR.poolAdminKey(address(pool2)), user2()));
+        assertFalse(_beamR.hasRole(_beamR.poolAdminKey(address(pool1)), user2()));
+
+        string memory expectedError = _createOZAccessControlErrorMessage(user1(), poolRole2);
+
+        _manuallyTestGrantRoleError(expectedError, user1(), someOtherGuy(), poolRole2);
+
+        expectedError = _createOZAccessControlErrorMessage(user2(), poolRole1);
+
+        _manuallyTestGrantRoleError(expectedError, user2(), someOtherGuy(), poolRole1);
+    }
+
+    function testPublicCannotGrantAdminRole() public {
+        // Check that a non-admin cannot grant the ADMIN_ROLE
+        string memory expectedError = _createOZAccessControlErrorMessage(someGuy(), _beamR.ROOT_ADMIN_ROLE());
+
+        _manuallyTestGrantRoleError(expectedError, someGuy(), someOtherGuy(), _beamR.ADMIN_ROLE());
+    }
+
+    function testPublicCannotGrantRootAdminRole() public {
+        // Check that a non-root-admin cannot grant the ROOT_ADMIN_ROLE
+        string memory expectedError = _createOZAccessControlErrorMessage(someGuy(), 0x00);
+
+        _manuallyTestGrantRoleError(expectedError, someGuy(), someOtherGuy(), _beamR.ROOT_ADMIN_ROLE());
+    }
+
+    //////////////////////////////////
+    ///// UTILS /////////////////////
+    /////////////////////////////////
 
     function _createPool() internal returns (ISuperfluidPool _pool) {
         BeamR.Member[] memory members = new BeamR.Member[](2);
@@ -98,12 +239,50 @@ contract BeamRTest is Test, Accounts {
     }
 
     function _setupHolders() internal {
-        uint256 balance = token.balanceOf(WHALE);
-        console.log("WHALE ALEPH balance:", balance / 1e18);
-
-        vm.prank(WHALE);
-        token.transfer(user1(), 1_000e18); // Transfer 1,000 ALEPH to user1
+        vm.startPrank(WHALE);
+        token.transfer(user1(), 1_000e18);
+        token.transfer(user2(), 1_000e18);
+        vm.stopPrank();
 
         assertEq(token.balanceOf(user1()), 1_000e18);
+    }
+
+    function _createOZAccessControlErrorMessage(address account, bytes32 role) internal pure returns (string memory) {
+        return string(
+            abi.encodePacked(
+                "AccessControl: account ",
+                Strings.toHexString(account),
+                " is missing role ",
+                Strings.toHexString(uint256(role), 32)
+            )
+        );
+    }
+
+    function _manuallyTestGrantRoleError(string memory _expectedError, address _from, address _to, bytes32 _role)
+        internal
+    {
+        // Utility to manually test that grantRole() reverts with the exact expected
+        // OpenZeppelin AccessControl string. This bypasses vm.expectRevert(), which
+        // can be unreliable with string-based errors, by using try/catch to capture
+        // the revert reason and assert equality against _expectedError.
+        string memory revertReason;
+        bool didRevert = false;
+
+        vm.startPrank(_from);
+
+        try _beamR.grantRole(_role, _to) {
+            fail("Expected revert did not occur");
+        } catch Error(string memory actualError) {
+            didRevert = true;
+            revertReason = actualError;
+        } catch (bytes memory) {
+            didRevert = true;
+            revertReason = "Unknown error";
+        }
+
+        vm.stopPrank();
+
+        assertTrue(didRevert, "Function should have reverted");
+        assertEq(revertReason, _expectedError, "Wrong revert reason");
     }
 }

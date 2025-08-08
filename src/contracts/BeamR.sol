@@ -13,8 +13,6 @@ import {
     ISuperToken
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 
-// import {GDAv1Forwarder} from "@superfluid/ethereum-contracts/contracts/utils/GDAv1Forwarder.sol";
-
 contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
 
@@ -23,14 +21,17 @@ contract BeamR is IBeamR, AccessControl {
 
     constructor(address[] memory _poolAdmins, address[] memory _rootAdmins) {
         for (uint256 i; i < _poolAdmins.length;) {
-            _setupRole(ADMIN_ROLE, _poolAdmins[i]);
+            _grantRole(ADMIN_ROLE, _poolAdmins[i]);
             unchecked {
                 i++;
             }
         }
 
+        // Allows ROOT_ADMIN_ROLE to revoke and grant ADMIN_ROLE
+        _setRoleAdmin(ADMIN_ROLE, ROOT_ADMIN_ROLE);
+
         for (uint256 i; i < _rootAdmins.length;) {
-            _setupRole(ROOT_ADMIN_ROLE, _rootAdmins[i]);
+            _grantRole(ROOT_ADMIN_ROLE, _rootAdmins[i]);
             unchecked {
                 i++;
             }
@@ -46,7 +47,7 @@ contract BeamR is IBeamR, AccessControl {
         address _creator,
         Metadata memory _metadata
     ) external returns (ISuperfluidPool beamPool) {
-        if (!_isValidRole(ADMIN_ROLE, _admin)) {
+        if (!hasRole(ADMIN_ROLE, _admin)) {
             revert Unauthorized();
         }
 
@@ -54,38 +55,13 @@ contract BeamR is IBeamR, AccessControl {
             _poolSuperToken, address(this), _poolConfig, _erc20Metadata
         );
 
-        _setupRole(_poolAdminKey(address(beamPool)), _creator);
+        _grantRole(poolAdminKey(address(beamPool)), _creator);
+        // Allows the creator to manage pool admin role grant and revoke
+        _setRoleAdmin(poolAdminKey(address(beamPool)), poolAdminKey(address(beamPool)));
 
         emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, _metadata);
 
         _updateMembersUnits(beamPool, _members);
-    }
-
-    function manageRole(bytes32 _targetRole, address _account, address _poolAddress, bool _grant) external {
-        // ONLY ROOT_ADMIN, can grant or revoke ROOT_ADMIN_ROLE
-        if (_targetRole == ROOT_ADMIN_ROLE && !hasRole(ROOT_ADMIN_ROLE, msg.sender)) {
-            revert Unauthorized();
-        }
-        // ONLY ADMIN_ROLE and ROOT_ADMIN_ROLE can grant or revoke ADMIN_ROLE
-        if (_targetRole == ADMIN_ROLE && (!hasRole(ROOT_ADMIN_ROLE, msg.sender)) && !hasRole(ADMIN_ROLE, msg.sender)) {
-            revert Unauthorized();
-        }
-        // ONLY POOL_ADMIN, ROOT_ADMIN, or ADMIN_ROLE can grant or revoke POOL_ADMIN_ROLE
-        if (
-            _targetRole == _poolAdminKey(_poolAddress)
-                && (
-                    !hasRole(ADMIN_ROLE, msg.sender) && !hasRole(ROOT_ADMIN_ROLE, msg.sender)
-                        && !hasRole(_targetRole, msg.sender)
-                )
-        ) {
-            revert Unauthorized();
-        }
-
-        if (_grant) {
-            _setupRole(_targetRole, _account);
-        } else {
-            _revokeRole(_targetRole, _account);
-        }
     }
 
     function updateMemberUnits(Member[] memory _members, address _poolAddress) external {
@@ -109,18 +85,10 @@ contract BeamR is IBeamR, AccessControl {
     }
 
     function isPoolAdmin(address _account, address _poolAddress) public view returns (bool) {
-        return hasRole(_poolAdminKey(_poolAddress), _account);
+        return hasRole(poolAdminKey(_poolAddress), _account);
     }
 
-    function _isValidRole(bytes32 _role, address _account) internal view returns (bool) {
-        if (_role != ROOT_ADMIN_ROLE && _role != ADMIN_ROLE) {
-            revert Unauthorized();
-        }
-
-        return hasRole(_role, _account);
-    }
-
-    function _poolAdminKey(address _poolAddress) internal pure returns (bytes32) {
+    function poolAdminKey(address _poolAddress) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(_poolAddress));
     }
 }
