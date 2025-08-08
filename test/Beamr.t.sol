@@ -33,6 +33,8 @@ interface IGDAForwader {
 }
 
 contract BeamRTest is Test, Accounts {
+    error Unauthorized();
+
     // Using STREME token on Base to test
     address constant TOKEN_ADDRESS = 0x3B3Cd21242BA44e9865B066e5EF5d1cC1030CC58;
     address constant FOWARDER_ADDRESS = 0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08;
@@ -204,6 +206,43 @@ contract BeamRTest is Test, Accounts {
         assertEq(pool.getUnits(admin1()), 5);
     }
 
+    function test_bactchUpdateMemberUnits() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+        assertEq(pool.getUnits(user3()), 0);
+        assertEq(pool.getUnits(user4()), 0);
+        assertEq(pool.getUnits(user5()), 0);
+
+        BeamR.Member[] memory members = new BeamR.Member[](5);
+        members[0] = IBeamR.Member({account: user1(), units: 10});
+        members[1] = IBeamR.Member({account: admin1(), units: 15});
+        members[2] = IBeamR.Member({account: user3(), units: 20});
+        members[3] = IBeamR.Member({account: user4(), units: 25});
+        members[4] = IBeamR.Member({account: user5(), units: 30});
+
+        address[] memory poolAddresses = new address[](5);
+        poolAddresses[0] = address(pool);
+        poolAddresses[1] = address(pool);
+        poolAddresses[2] = address(pool);
+        poolAddresses[3] = address(pool);
+        poolAddresses[4] = address(pool);
+
+        vm.startPrank(user1());
+        _beamR.updateMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 10);
+        assertEq(pool.getUnits(admin1()), 15);
+        assertEq(pool.getUnits(user3()), 20);
+        assertEq(pool.getUnits(user4()), 25);
+        assertEq(pool.getUnits(user5()), 30);
+        assertEq(pool.getTotalUnits(), 100); // 10 + 15 + 20 + 25 + 30
+    }
+
     //////////////////////////////////
     ///// REVERTS ///////////////////
     /////////////////////////////////
@@ -289,6 +328,31 @@ contract BeamRTest is Test, Accounts {
         string memory expectedError = _createOZAccessControlErrorMessage(someGuy(), 0x00);
 
         _manuallyTestGrantRoleError(expectedError, someGuy(), someOtherGuy(), _beamR.ROOT_ADMIN_ROLE());
+    }
+
+    function testRevert_updateUnits_UNAUTHORIZED() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+
+        // Attempt to update user1's units to 10 by someGuy, who is not authorized
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 10});
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(someGuy());
+        vm.expectRevert(Unauthorized.selector);
+        _beamR.updateMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        vm.startPrank(beamTeam());
+        vm.expectRevert(Unauthorized.selector);
+        _beamR.updateMemberUnits(members, poolAddresses);
+        vm.stopPrank();
     }
 
     //////////////////////////////////
