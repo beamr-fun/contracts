@@ -61,6 +61,33 @@ contract BeamR is IBeamR, AccessControl {
         _updateMembersUnits(beamPool, _members);
     }
 
+    function manageRole(bytes32 _targetRole, address _account, address _poolAddress, bool _grant) external {
+        // ONLY ROOT_ADMIN, can grant or revoke ROOT_ADMIN_ROLE
+        if (_targetRole == ROOT_ADMIN_ROLE && !hasRole(ROOT_ADMIN_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
+        // ONLY ADMIN_ROLE and ROOT_ADMIN_ROLE can grant or revoke ADMIN_ROLE
+        if (_targetRole == ADMIN_ROLE && (!hasRole(ROOT_ADMIN_ROLE, msg.sender)) && !hasRole(ADMIN_ROLE, msg.sender)) {
+            revert Unauthorized();
+        }
+        // ONLY POOL_ADMIN, ROOT_ADMIN, or ADMIN_ROLE can grant or revoke POOL_ADMIN_ROLE
+        if (
+            _targetRole == _poolAdminKey(_poolAddress)
+                && (
+                    !hasRole(ADMIN_ROLE, msg.sender) && !hasRole(ROOT_ADMIN_ROLE, msg.sender)
+                        && !hasRole(_targetRole, msg.sender)
+                )
+        ) {
+            revert Unauthorized();
+        }
+
+        if (_grant) {
+            _setupRole(_targetRole, _account);
+        } else {
+            _revokeRole(_targetRole, _account);
+        }
+    }
+
     function updateMemberUnits(Member[] memory _members, address _poolAddress) external {
         if (!hasRole(ADMIN_ROLE, msg.sender) && !isPoolAdmin(msg.sender, _poolAddress)) {
             revert Unauthorized();
