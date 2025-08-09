@@ -13,11 +13,26 @@ import {
     ISuperToken
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 
+/// @title BeamR – Superfluid pool factory & per-pool admin manager
+/// @author Jord
+/// @notice Creates Superfluid pools manages pool-specific admin roles.
 contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
 
+    // ------------------------
+    // -------- State ---------
+    // ------------------------
+
+    /// @notice Initializes global admin roles.
+
+    /// @dev ROOT_ADMIN_ROLE can grant and revoke ADMIN_ROLE., can resume pool creators
     bytes32 public constant ROOT_ADMIN_ROLE = keccak256("ROOT_ADMIN_ROLE");
+    /// @dev ADMIN_ROLE can update member units globally
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+
+    // ------------------------
+    // -------- Init  ---------
+    // ------------------------
 
     constructor(address[] memory _poolAdmins, address[] memory _rootAdmins) {
         for (uint256 i; i < _poolAdmins.length;) {
@@ -38,6 +53,16 @@ contract BeamR is IBeamR, AccessControl {
         }
     }
 
+    /// @notice Create a new Superfluid pool and optionally seed member units.
+    /// @dev Grants the pool-specific admin role (derived via {poolAdminKey}) to `_creator`.
+    ///      Emits {PoolCreated} before unit updates to ease indexing.
+    /// @param _poolSuperToken The SuperToken used by the pool.
+    /// @param _poolConfig GDAv1 pool config.
+    /// @param _erc20Metadata Custom ERC20 name/symbol/decimals for the pool wrapper.
+    /// @param _members Parallel array of initial member accounts/units to set (entries with 0 are skipped).
+    /// @param _creator Address to receive the pool’s admin role (can manage that pool’s units).
+    /// @param _metadata Off-chain pointer/schema info emitted in the event.
+    /// @return beamPool The newly created GDA pool instance.
     function createPool(
         ISuperToken _poolSuperToken,
         PoolConfig memory _poolConfig,
@@ -67,11 +92,16 @@ contract BeamR is IBeamR, AccessControl {
         }
     }
 
+    /// @notice Update a member’s units for multiple pools in one call.
+    /// @dev The i-th entry of `_members` is applied to the i-th entry of `poolAddresses`.
+    ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
+    /// @param _members Members (account, units) to apply index-wise.
+    /// @param poolAddresses Pools to update, index-aligned with `_members`.
     function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses) external {
         for (uint256 i; i < poolAddresses.length;) {
             address _poolAddress = poolAddresses[i];
 
-            if (!hasRole(ADMIN_ROLE, msg.sender) && !isPoolAdmin(msg.sender, _poolAddress)) {
+            if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(poolAdminKey(_poolAddress), msg.sender)) {
                 revert Unauthorized();
             }
 
@@ -85,6 +115,11 @@ contract BeamR is IBeamR, AccessControl {
         }
     }
 
+    /// @notice Reassign the pool creator/admin role to a new address.
+    /// @dev Only callable by {ROOT_ADMIN_ROLE}. Revokes the role from `_currentCreator` and grants to `_newCreator`.
+    /// @param _poolAddress Address of the target pool.
+    /// @param _newCreator Address to receive the pool admin role.
+    /// @param _currentCreator Address currently holding the pool admin role.
     function rescuePoolCreator(address _poolAddress, address _newCreator, address _currentCreator)
         external
         onlyRole(ROOT_ADMIN_ROLE)
@@ -95,6 +130,10 @@ contract BeamR is IBeamR, AccessControl {
         _grantRole(poolAdminKey(_poolAddress), _newCreator);
     }
 
+    /// @notice Publish new metadata for a pool via event.
+    /// @dev Only callable by the pool’s admin role (see {poolAdminKey}).
+    /// @param _poolAddress Pool whose metadata is being updated.
+    /// @param _metadata Off-chain pointer/schema info emitted in {PoolMetadataUpdated}.
     function updateMetadata(address _poolAddress, Metadata memory _metadata)
         external
         onlyRole(poolAdminKey(_poolAddress))
@@ -102,10 +141,10 @@ contract BeamR is IBeamR, AccessControl {
         emit PoolMetadataUpdated(_poolAddress, _metadata);
     }
 
-    function isPoolAdmin(address _account, address _poolAddress) public view returns (bool) {
-        return hasRole(poolAdminKey(_poolAddress), _account);
-    }
-
+    /// @notice Deterministically derive the role id for a pool’s admin role.
+    /// @dev roleId = keccak256(abi.encodePacked(_poolAddress)).
+    /// @param _poolAddress Pool address used as the key material.
+    /// @return roleId The bytes32 role identifier for that pool.
     function poolAdminKey(address _poolAddress) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(_poolAddress));
     }
