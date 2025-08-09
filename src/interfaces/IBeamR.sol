@@ -12,11 +12,17 @@ import {
 
 interface IBeamR {
     // -------- Types --------
+
+    /// @notice Arbitrary off-chain metadata pointer with a protocol id.
+    /// @dev `protocol` identifies how to interpret `pointer` (e.g., IPFS, HTTPS).
     struct Metadata {
         uint256 protocol;
         string pointer;
     }
 
+    /// @notice Member record for unit-based distributions.
+    /// @param account Member address.
+    /// @param units Unit weight used by the pool.
     struct Member {
         address account;
         uint128 units;
@@ -28,10 +34,22 @@ interface IBeamR {
     function ADMIN_ROLE() external pure returns (bytes32);
 
     // -------- Events --------
+
+    /// @notice Emitted when a new pool is created.
+    /// @param pool The pool address.
+    /// @param token The SuperToken backing the pool.
+    /// @param config The pool config used at creation.
+    /// @param creator Address granted the pool admin role.
+    /// @param metadata Off-chain pointer/schema info.
     event PoolCreated(address pool, address token, PoolConfig config, address creator, Metadata metadata);
+    /// @notice Emitted when pool metadata is updated.
+    /// @param pool The pool whose metadata changed.
+    /// @param metadata New off-chain pointer/schema info.
     event PoolMetadataUpdated(address pool, Metadata metadata);
 
     // -------- Errors --------
+
+    /// @notice Thrown when the caller lacks required permissions.
     error Unauthorized();
 
     // -------- External API --------

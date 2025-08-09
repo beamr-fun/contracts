@@ -53,6 +53,10 @@ contract BeamR is IBeamR, AccessControl {
         }
     }
 
+    // ------------------------
+    // -------  API  ----------
+    // ------------------------
+
     /// @notice Create a new Superfluid pool and optionally seed member units.
     /// @dev Grants the pool-specific admin role (derived via {poolAdminKey}) to `_creator`.
     ///      Emits {PoolCreated} before unit updates to ease indexing.
