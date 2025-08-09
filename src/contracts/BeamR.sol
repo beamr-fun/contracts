@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {
     PoolConfig,
     PoolERC20Metadata
 } from "@superfluid/ethereum-contracts/contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {SuperTokenV1Library} from "@superfluid/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import {IBeamR} from "../interfaces/IBeamR.sol";
 import {
     ISuperfluidPool,
     ISuperToken
 } from "@superfluid/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+import {SuperTokenV1Library} from "@superfluid/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
+
+import {IBeamR} from "../interfaces/IBeamR.sol";
 
 /// @title BeamR – Superfluid pool factory & per-pool admin manager
 /// @author Jord
