@@ -34,9 +34,9 @@ contract BeamR is IBeamR, AccessControl {
     // -------- Init  ---------
     // ------------------------
 
-    constructor(address[] memory _poolAdmins, address[] memory _rootAdmins) {
-        for (uint256 i; i < _poolAdmins.length;) {
-            _grantRole(ADMIN_ROLE, _poolAdmins[i]);
+    constructor(address[] memory _admins, address[] memory _rootAdmins) {
+        for (uint256 i; i < _admins.length;) {
+            _grantRole(ADMIN_ROLE, _admins[i]);
             unchecked {
                 i++;
             }
@@ -51,6 +51,8 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
+
+        emit Initialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
     }
 
     // ------------------------
@@ -79,12 +81,15 @@ contract BeamR is IBeamR, AccessControl {
             _poolSuperToken, address(this), _poolConfig, _erc20Metadata
         );
 
-        _grantRole(poolAdminKey(address(beamPool)), _creator);
+        // Derive the pool-specific admin role
+        bytes32 poolAdminRole = poolAdminKey(address(beamPool));
+        // Grant the creator the pool admin role
+        _grantRole(poolAdminRole, _creator);
         // Allows the creator to manage pool admin role grant and revoke
-        _setRoleAdmin(poolAdminKey(address(beamPool)), poolAdminKey(address(beamPool)));
+        _setRoleAdmin(poolAdminRole, poolAdminRole);
 
         // Event is emitted before updating member units to ensure indexer can easily match
-        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, _metadata);
+        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, poolAdminRole, _metadata);
 
         for (uint256 i; i < _members.length;) {
             if (_members[i].units > 0) {

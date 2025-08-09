@@ -35,13 +35,21 @@ interface IBeamR {
 
     // -------- Events --------
 
+    /// @notice Emitted when the contract is initialized.
+    /// @param adminRole The ADMIN_ROLE role id.
+    /// @param rootAdminRole The ROOT_ADMIN_ROLE role id.
+    event Initialized(bytes32 adminRole, bytes32 rootAdminRole);
+
     /// @notice Emitted when a new pool is created.
     /// @param pool The pool address.
     /// @param token The SuperToken backing the pool.
     /// @param config The pool config used at creation.
     /// @param creator Address granted the pool admin role.
+    /// @param poolAdminRole The pool-specific admin role id.
     /// @param metadata Off-chain pointer/schema info.
-    event PoolCreated(address pool, address token, PoolConfig config, address creator, Metadata metadata);
+    event PoolCreated(
+        address pool, address token, PoolConfig config, address creator, bytes32 poolAdminRole, Metadata metadata
+    );
     /// @notice Emitted when pool metadata is updated.
     /// @param pool The pool whose metadata changed.
     /// @param metadata New off-chain pointer/schema info.
