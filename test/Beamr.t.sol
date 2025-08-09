@@ -348,6 +348,20 @@ contract BeamRTest is Test, Accounts {
         _manuallyTestGrantRoleError(expectedError, admin1(), someOtherGuy(), _beamR.ADMIN_ROLE());
     }
 
+    function testRevert_anyoneGrantsAnyRole_UNAUTHORIZED() public {
+        bytes32 fakeRole = keccak256(abi.encodePacked("FAKE_ROLE"));
+        string memory expectedError = _createOZAccessControlErrorMessage(someGuy(), 0x00);
+
+        _manuallyTestGrantRoleError(expectedError, someGuy(), someOtherGuy(), fakeRole);
+    }
+
+    function testRevert_someoneSneakilyGrantsZeroRole_UNAUTHORIZED() public {
+        // This is a test to ensure that no one can grant the 0x00 role
+        string memory expectedError = _createOZAccessControlErrorMessage(someGuy(), 0x00);
+
+        _manuallyTestGrantRoleError(expectedError, someGuy(), someOtherGuy(), 0x00);
+    }
+
     function testRevert_poolAdmin_grantRole_UNAUTHORIZED() public {
         ISuperfluidPool pool = _createPool();
         bytes32 poolRole = _beamR.poolAdminKey(address(pool));
