@@ -20,7 +20,7 @@ contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
 
     // ------------------------
-    // -------- State ---------
+    // ------ Constants -------
     // ------------------------
 
     /// @notice Initializes global admin roles.
