@@ -36,6 +36,9 @@ contract BeamR is IBeamR, AccessControl {
     // ------------------------
 
     constructor(address[] memory _admins, address[] memory _rootAdmins) {
+        // Run event first to ensure indexers can easily match it
+        emit Initialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
+
         for (uint256 i; i < _admins.length;) {
             _grantRole(ADMIN_ROLE, _admins[i]);
             unchecked {
@@ -52,8 +55,6 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
-
-        emit Initialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
     }
 
     // ------------------------
@@ -84,13 +85,14 @@ contract BeamR is IBeamR, AccessControl {
 
         // Derive the pool-specific admin role
         bytes32 poolAdminRole = poolAdminKey(address(beamPool));
+
+        // Event is emitted before updating member units to ensure indexer can easily match
+        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, poolAdminRole, _metadata);
+
         // Grant the creator the pool admin role
         _grantRole(poolAdminRole, _creator);
         // Allows the creator to manage pool admin role grant and revoke
         _setRoleAdmin(poolAdminRole, poolAdminRole);
-
-        // Event is emitted before updating member units to ensure indexer can easily match
-        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, poolAdminRole, _metadata);
 
         for (uint256 i; i < _members.length;) {
             if (_members[i].units > 0) {
@@ -156,6 +158,6 @@ contract BeamR is IBeamR, AccessControl {
     /// @param _poolAddress Pool address used as the key material.
     /// @return roleId The bytes32 role identifier for that pool.
     function poolAdminKey(address _poolAddress) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_poolAddress));
+        return keccak256(abi.encodePacked("POOL_MANAGER", _poolAddress));
     }
 }
