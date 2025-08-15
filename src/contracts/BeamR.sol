@@ -117,9 +117,62 @@ contract BeamR is IBeamR, AccessControl {
                 revert Unauthorized();
             }
 
+            // prevent underflow
+
             ISuperfluidPool pool = ISuperfluidPool(poolAddresses[i]);
+            // uint256 _existingMemberUnits = pool.getUnits(_members[i].account);
+
+            // if (_existingMemberUnits == _members[i].units) {
+            //     revert Underflow();
+            // }
 
             pool.updateMemberUnits(_members[i].account, _members[i].units);
+
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    /// @notice Increase a member’s units for multiple pools in one call.
+    /// @dev The i-th entry of `_memberAdjustments` is applied to the i-th entry of `_poolAddresses`.
+    ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
+    /// @param _memberAdjustments Members (account, units) to apply index-wise.
+    /// @param _poolAddresses Pools to update, index-aligned with `_memberAdjustments`.
+    function increaseMemberUnits(Member[] memory _memberAdjustments, address[] memory _poolAddresses) external {
+        for (uint256 i; i < _poolAddresses.length;) {
+            address _poolAddress = _poolAddresses[i];
+
+            if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(poolAdminKey(_poolAddress), msg.sender)) {
+                revert Unauthorized();
+            }
+
+            ISuperfluidPool pool = ISuperfluidPool(_poolAddresses[i]);
+
+            pool.increaseMemberUnits(_memberAdjustments[i].account, _memberAdjustments[i].units);
+
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    /// @notice Decrease a member’s units for multiple pools in one call.
+    /// @dev The i-th entry of `_memberAdjustments` is applied to the i-th entry of `_poolAddresses`.
+    ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
+    /// @param _memberAdjustments Members (account, units) to apply index-wise.
+    /// @param _poolAddresses Pools to update, index-aligned with `_memberAdjustments`.
+    function decreaseMemberUnits(Member[] memory _memberAdjustments, address[] memory _poolAddresses) external {
+        for (uint256 i; i < _poolAddresses.length;) {
+            address _poolAddress = _poolAddresses[i];
+
+            if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(poolAdminKey(_poolAddress), msg.sender)) {
+                revert Unauthorized();
+            }
+
+            ISuperfluidPool pool = ISuperfluidPool(_poolAddresses[i]);
+
+            pool.decreaseMemberUnits(_memberAdjustments[i].account, _memberAdjustments[i].units);
 
             unchecked {
                 i++;

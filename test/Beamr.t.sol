@@ -93,7 +93,7 @@ contract BeamRTest is Test, Accounts {
         assertEq(pool.getMemberFlowRate(user1()), 0);
         assertEq(pool.getMemberFlowRate(admin1()), 0);
 
-        assertEq(_beamR.poolAdminKey(address(pool)), keccak256(abi.encodePacked(address(pool))));
+        assertEq(_beamR.poolAdminKey(address(pool)), keccak256(abi.encodePacked("POOL_MANAGER", address(pool))));
     }
 
     function test_createPool_role() public {
@@ -296,6 +296,122 @@ contract BeamRTest is Test, Accounts {
         assertEq(pool1.getUnits(user5()), 0);
     }
 
+    function testIncreaseMemberUnits() public {
+        ISuperfluidPool pool = _createPool();
+
+        IBeamR.Member[] memory members = new BeamR.Member[](1);
+        address[] memory poolAddresses = new address[](1);
+
+        members[0] = IBeamR.Member({account: user2(), units: 10});
+        poolAddresses[0] = address(pool);
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+        assertEq(pool.getUnits(user2()), 0);
+
+        vm.startPrank(admin1());
+
+        // Increase user1's units by 10
+
+        _beamR.increaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+        assertEq(pool.getUnits(user2()), 10);
+    }
+
+    function testBatchIncreaseMemberUnits() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+        assertEq(pool.getUnits(user3()), 0);
+        assertEq(pool.getUnits(user4()), 0);
+        assertEq(pool.getUnits(user5()), 0);
+
+        BeamR.Member[] memory members = new BeamR.Member[](5);
+        members[0] = IBeamR.Member({account: user1(), units: 10});
+        members[1] = IBeamR.Member({account: admin1(), units: 15});
+        members[2] = IBeamR.Member({account: user3(), units: 20});
+        members[3] = IBeamR.Member({account: user4(), units: 25});
+        members[4] = IBeamR.Member({account: user5(), units: 30});
+
+        address[] memory poolAddresses = new address[](5);
+        poolAddresses[0] = address(pool);
+        poolAddresses[1] = address(pool);
+        poolAddresses[2] = address(pool);
+        poolAddresses[3] = address(pool);
+        poolAddresses[4] = address(pool);
+
+        vm.startPrank(admin1());
+        _beamR.increaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 15);
+        assertEq(pool.getUnits(admin1()), 20);
+        assertEq(pool.getUnits(user3()), 20);
+        assertEq(pool.getUnits(user4()), 25);
+        assertEq(pool.getUnits(user5()), 30);
+    }
+
+    function testIncreaseMemberUnits_acrossPools() public {
+        ISuperfluidPool pool1 = _createPool();
+
+        // Check initial units in pool1
+        assertEq(pool1.getUnits(user1()), 5);
+        assertEq(pool1.getUnits(admin1()), 5);
+
+        // Create a second pool with different members
+        BeamR.Member[] memory members2 = new BeamR.Member[](2);
+
+        members2[0] = IBeamR.Member({account: user2(), units: 5});
+        members2[1] = IBeamR.Member({account: admin1(), units: 5});
+
+        vm.prank(admin1());
+
+        ISuperfluidPool pool2 = _beamR.createPool(
+            token,
+            PoolConfig({transferabilityForUnitsOwner: false, distributionFromAnyAddress: true}),
+            PoolERC20Metadata({name: "BeamR Pool Token 2", symbol: "BPT2", decimals: 18}),
+            members2,
+            user2(),
+            IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
+        );
+
+        // Check initial units in pool2
+        assertEq(pool2.getUnits(user2()), 5);
+        assertEq(pool2.getUnits(admin1()), 5);
+
+        // Increase units across both pools
+        BeamR.Member[] memory members = new BeamR.Member[](3);
+        members[0] = IBeamR.Member({account: user3(), units: 10});
+        members[1] = IBeamR.Member({account: user4(), units: 15});
+        members[2] = IBeamR.Member({account: user5(), units: 20});
+
+        address[] memory poolAddresses = new address[](3);
+        poolAddresses[0] = address(pool1);
+        poolAddresses[1] = address(pool1);
+        poolAddresses[2] = address(pool2);
+
+        vm.startPrank(admin1());
+        _beamR.increaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units in both pools
+        assertEq(pool1.getUnits(user3()), 10);
+        assertEq(pool1.getUnits(user4()), 15);
+        assertEq(pool2.getUnits(user5()), 20);
+
+        assertEq(pool2.getUnits(user3()), 0);
+        assertEq(pool2.getUnits(user4()), 0);
+        assertEq(pool1.getUnits(user5()), 0);
+    }
+
     function testRescuePoolCreator() public {
         ISuperfluidPool pool = _createPool();
 
@@ -461,6 +577,27 @@ contract BeamRTest is Test, Accounts {
         vm.startPrank(beamTeam());
         vm.expectRevert(Unauthorized.selector);
         _beamR.updateMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+    }
+
+    function testRevert_increaseMemberUnits_UNAUTHORIZED() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Attempt to increase user1's units by 10 by someGuy, who is not authorized
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 10});
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(someGuy());
+        vm.expectRevert(Unauthorized.selector);
+        _beamR.increaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        vm.startPrank(beamTeam());
+        vm.expectRevert(Unauthorized.selector);
+        _beamR.increaseMemberUnits(members, poolAddresses);
         vm.stopPrank();
     }
 
