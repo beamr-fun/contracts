@@ -120,11 +120,11 @@ contract BeamR is IBeamR, AccessControl {
             // prevent underflow
 
             ISuperfluidPool pool = ISuperfluidPool(poolAddresses[i]);
-            // uint256 _existingMemberUnits = pool.getUnits(_members[i].account);
+            uint256 _existingMemberUnits = pool.getUnits(_members[i].account);
 
-            // if (_existingMemberUnits == _members[i].units) {
-            //     revert Underflow();
-            // }
+            if (_existingMemberUnits == _members[i].units) {
+                revert Underflow();
+            }
 
             pool.updateMemberUnits(_members[i].account, _members[i].units);
 
@@ -171,6 +171,10 @@ contract BeamR is IBeamR, AccessControl {
             }
 
             ISuperfluidPool pool = ISuperfluidPool(_poolAddresses[i]);
+
+            if (pool.getUnits(_memberAdjustments[i].account) < _memberAdjustments[i].units) {
+                revert Underflow();
+            }
 
             pool.decreaseMemberUnits(_memberAdjustments[i].account, _memberAdjustments[i].units);
 

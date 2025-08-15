@@ -412,6 +412,104 @@ contract BeamRTest is Test, Accounts {
         assertEq(pool1.getUnits(user5()), 0);
     }
 
+    function testDecreaseMemberUnits() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+
+        // Decrease user1's units by 2
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 3});
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(admin1());
+        _beamR.decreaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 2);
+        assertEq(pool.getUnits(admin1()), 5);
+    }
+
+    function testBatchDecreaseMemberUnits() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Check initial units
+        assertEq(pool.getUnits(user1()), 5);
+        assertEq(pool.getUnits(admin1()), 5);
+
+        BeamR.Member[] memory members = new BeamR.Member[](2);
+        members[0] = IBeamR.Member({account: user1(), units: 3});
+        members[1] = IBeamR.Member({account: admin1(), units: 2});
+
+        address[] memory poolAddresses = new address[](2);
+        poolAddresses[0] = address(pool);
+        poolAddresses[1] = address(pool);
+
+        vm.startPrank(admin1());
+        _beamR.decreaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units
+        assertEq(pool.getUnits(user1()), 2);
+        assertEq(pool.getUnits(admin1()), 3);
+    }
+
+    function testBatchDecreaseMemberUnits_acrossPools() public {
+        ISuperfluidPool pool1 = _createPool();
+
+        // Check initial units in pool1
+        assertEq(pool1.getUnits(user1()), 5);
+        assertEq(pool1.getUnits(admin1()), 5);
+
+        // Create a second pool with different members
+        BeamR.Member[] memory members2 = new BeamR.Member[](2);
+
+        members2[0] = IBeamR.Member({account: user2(), units: 5});
+        members2[1] = IBeamR.Member({account: admin1(), units: 5});
+
+        vm.prank(admin1());
+
+        ISuperfluidPool pool2 = _beamR.createPool(
+            token,
+            PoolConfig({transferabilityForUnitsOwner: false, distributionFromAnyAddress: true}),
+            PoolERC20Metadata({name: "BeamR Pool Token 2", symbol: "BPT2", decimals: 18}),
+            members2,
+            user2(),
+            IBeamR.Metadata({protocol: 1, pointer: "https://beamr.io"})
+        );
+
+        // Check initial units in pool2
+        assertEq(pool2.getUnits(user2()), 5);
+        assertEq(pool2.getUnits(admin1()), 5);
+
+        // Decrease units across both pools
+        BeamR.Member[] memory members = new BeamR.Member[](3);
+        members[0] = IBeamR.Member({account: user1(), units: 3});
+        members[1] = IBeamR.Member({account: admin1(), units: 4});
+        members[2] = IBeamR.Member({account: admin1(), units: 5});
+
+        address[] memory poolAddresses = new address[](3);
+        poolAddresses[0] = address(pool1);
+        poolAddresses[1] = address(pool1);
+        poolAddresses[2] = address(pool2);
+
+        vm.startPrank(admin1());
+        _beamR.decreaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        // Verify updated units in both pools
+        assertEq(pool1.getUnits(user1()), 2); // No previous units, so should remain 0
+        assertEq(pool1.getUnits(admin1()), 1); // No previous units, so should remain 0
+
+        assertEq(pool2.getUnits(user2()), 5); // No change
+        assertEq(pool2.getUnits(admin1()), 0); // Decreased from 5 to 0
+    }
+
     function testRescuePoolCreator() public {
         ISuperfluidPool pool = _createPool();
 
@@ -598,6 +696,43 @@ contract BeamRTest is Test, Accounts {
         vm.startPrank(beamTeam());
         vm.expectRevert(Unauthorized.selector);
         _beamR.increaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+    }
+
+    function testRevertDecreaseMemberUnits_UNAUTHORIZED() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Attempt to decrease user1's units by 2 by someGuy, who is not authorized
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 3});
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(someGuy());
+        vm.expectRevert(Unauthorized.selector);
+        _beamR.decreaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+
+        vm.startPrank(beamTeam());
+        vm.expectRevert(Unauthorized.selector);
+        _beamR.decreaseMemberUnits(members, poolAddresses);
+        vm.stopPrank();
+    }
+
+    function testRevert_decreaseMemberUnits_underflow() public {
+        ISuperfluidPool pool = _createPool();
+
+        // Attempt to decrease user1's units below 0
+        BeamR.Member[] memory members = new BeamR.Member[](1);
+        members[0] = IBeamR.Member({account: user1(), units: 6}); // user1 only has 5 units
+
+        address[] memory poolAddresses = new address[](1);
+        poolAddresses[0] = address(pool);
+
+        vm.startPrank(admin1());
+        // vm.expectRevert("BeamR: Cannot decrease units below zero");
+        _beamR.decreaseMemberUnits(members, poolAddresses);
         vm.stopPrank();
     }
 

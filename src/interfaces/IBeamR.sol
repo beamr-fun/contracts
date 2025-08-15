@@ -60,6 +60,9 @@ interface IBeamR {
     /// @notice Thrown when the caller lacks required permissions.
     error Unauthorized();
 
+    /// @notice Thrown before an arithmetic overflow occurs.
+    error Underflow();
+
     // -------- External API --------
     function createPool(
         ISuperToken _poolSuperToken,
