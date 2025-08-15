@@ -731,7 +731,7 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[0] = address(pool);
 
         vm.startPrank(admin1());
-        // vm.expectRevert("BeamR: Cannot decrease units below zero");
+        vm.expectRevert(IBeamR.Underflow.selector);
         _beamR.decreaseMemberUnits(members, poolAddresses);
         vm.stopPrank();
     }
