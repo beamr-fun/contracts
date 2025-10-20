@@ -28,6 +28,12 @@ interface IBeamR {
         uint128 units;
     }
 
+    enum Action {
+        Update,
+        Increase,
+        Decrease
+    }
+
     // -------- Role ids (for convenience) --------
     // Must match the contract’s values
     function ROOT_ADMIN_ROLE() external pure returns (bytes32);
@@ -44,16 +50,30 @@ interface IBeamR {
     /// @param pool The pool address.
     /// @param token The SuperToken backing the pool.
     /// @param config The pool config used at creation.
+    /// @param members Initial array of members.
     /// @param creator Address granted the pool admin role.
     /// @param poolAdminRole The pool-specific admin role id.
     /// @param metadata Off-chain pointer/schema info.
     event PoolCreated(
-        address pool, address token, PoolConfig config, address creator, bytes32 poolAdminRole, Metadata metadata
+        address pool,
+        address token,
+        PoolConfig config,
+        Member[] members,
+        address creator,
+        bytes32 poolAdminRole,
+        Metadata metadata
     );
     /// @notice Emitted when pool metadata is updated.
     /// @param pool The pool whose metadata changed.
     /// @param metadata New off-chain pointer/schema info.
     event PoolMetadataUpdated(address pool, Metadata metadata);
+
+    /// @notice Emitted when member units are updated.
+    /// @param members Array of members whose units were updated.
+    /// @param poolAddresses Array of pool addresses where member units were updated.
+    /// @param action The type of update performed.
+    /// @param metadata Off-chain pointer/schema info.
+    event MemberUnitsUpdated(Member[] members, address[] poolAddresses, Action action, Metadata metadata);
 
     // -------- Errors --------
 
@@ -73,7 +93,7 @@ interface IBeamR {
         Metadata memory _metadata
     ) external returns (ISuperfluidPool beamPool);
 
-    function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses) external;
+    function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses, Metadata) external;
 
     function rescuePoolCreator(address _poolAddress, address _newCreator, address _currentCreator) external;
 

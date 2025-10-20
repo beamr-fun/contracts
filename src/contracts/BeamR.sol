@@ -20,6 +20,8 @@ import {IBeamR} from "../interfaces/IBeamR.sol";
 contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
 
+    event MemberUnitsChanged();
+
     // ------------------------
     // ------ Constants -------
     // ------------------------
@@ -87,7 +89,9 @@ contract BeamR is IBeamR, AccessControl {
         bytes32 poolAdminRole = poolAdminKey(address(beamPool));
 
         // Event is emitted before updating member units to ensure indexer can easily match
-        emit PoolCreated(address(beamPool), address(_poolSuperToken), _poolConfig, _creator, poolAdminRole, _metadata);
+        emit PoolCreated(
+            address(beamPool), address(_poolSuperToken), _poolConfig, _members, _creator, poolAdminRole, _metadata
+        );
 
         // Grant the creator the pool admin role
         _grantRole(poolAdminRole, _creator);
@@ -102,6 +106,8 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
+
+        return beamPool;
     }
 
     /// @notice Update a member’s units for multiple pools in one call.
@@ -109,9 +115,12 @@ contract BeamR is IBeamR, AccessControl {
     ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
     /// @param _members Members (account, units) to apply index-wise.
     /// @param poolAddresses Pools to update, index-aligned with `_members`.
-    function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses) external {
-        for (uint256 i; i < poolAddresses.length;) {
-            address _poolAddress = poolAddresses[i];
+    /// @param _metadata Off-chain pointer/schema info emitted in the event.
+    function updateMemberUnits(Member[] memory _members, address[] memory _poolAddresses, Metadata calldata _metadata)
+        external
+    {
+        for (uint256 i; i < _poolAddresses.length;) {
+            address _poolAddress = _poolAddresses[i];
 
             if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(poolAdminKey(_poolAddress), msg.sender)) {
                 revert Unauthorized();
@@ -119,12 +128,7 @@ contract BeamR is IBeamR, AccessControl {
 
             // prevent underflow
 
-            ISuperfluidPool pool = ISuperfluidPool(poolAddresses[i]);
-            uint256 _existingMemberUnits = pool.getUnits(_members[i].account);
-
-            if (_existingMemberUnits == _members[i].units) {
-                revert Underflow();
-            }
+            ISuperfluidPool pool = ISuperfluidPool(_poolAddresses[i]);
 
             pool.updateMemberUnits(_members[i].account, _members[i].units);
 
@@ -132,6 +136,8 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
+
+        emit MemberUnitsUpdated(_members, _poolAddresses, Action.Update, _metadata);
     }
 
     /// @notice Increase a member’s units for multiple pools in one call.
@@ -139,7 +145,12 @@ contract BeamR is IBeamR, AccessControl {
     ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
     /// @param _memberAdjustments Members (account, units) to apply index-wise.
     /// @param _poolAddresses Pools to update, index-aligned with `_memberAdjustments`.
-    function increaseMemberUnits(Member[] memory _memberAdjustments, address[] memory _poolAddresses) external {
+    /// @param _metadata Off-chain pointer/schema info emitted in the event.
+    function increaseMemberUnits(
+        Member[] memory _memberAdjustments,
+        address[] memory _poolAddresses,
+        Metadata memory _metadata
+    ) external {
         for (uint256 i; i < _poolAddresses.length;) {
             address _poolAddress = _poolAddresses[i];
 
@@ -155,6 +166,8 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
+
+        emit MemberUnitsUpdated(_memberAdjustments, _poolAddresses, Action.Increase, _metadata);
     }
 
     /// @notice Decrease a member’s units for multiple pools in one call.
@@ -162,7 +175,12 @@ contract BeamR is IBeamR, AccessControl {
     ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
     /// @param _memberAdjustments Members (account, units) to apply index-wise.
     /// @param _poolAddresses Pools to update, index-aligned with `_memberAdjustments`.
-    function decreaseMemberUnits(Member[] memory _memberAdjustments, address[] memory _poolAddresses) external {
+    /// @param _metadata Off-chain pointer/schema info emitted in the event.
+    function decreaseMemberUnits(
+        Member[] memory _memberAdjustments,
+        address[] memory _poolAddresses,
+        Metadata memory _metadata
+    ) external {
         for (uint256 i; i < _poolAddresses.length;) {
             address _poolAddress = _poolAddresses[i];
 
@@ -182,6 +200,8 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
+
+        emit MemberUnitsUpdated(_memberAdjustments, _poolAddresses, Action.Decrease, _metadata);
     }
 
     /// @notice Reassign the pool creator/admin role to a new address.
