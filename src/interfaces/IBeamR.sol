@@ -93,7 +93,8 @@ interface IBeamR {
         Metadata memory _metadata
     ) external returns (ISuperfluidPool beamPool);
 
-    function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses, Metadata) external;
+    function updateMemberUnits(Member[] memory _members, address[] memory poolAddresses, Metadata memory metadata)
+        external;
 
     function rescuePoolCreator(address _poolAddress, address _newCreator, address _currentCreator) external;
 

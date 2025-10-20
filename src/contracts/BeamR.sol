@@ -114,9 +114,9 @@ contract BeamR is IBeamR, AccessControl {
     /// @dev The i-th entry of `_members` is applied to the i-th entry of `poolAddresses`.
     ///      Caller must have {ADMIN_ROLE} or be the per-pool admin of each target pool.
     /// @param _members Members (account, units) to apply index-wise.
-    /// @param poolAddresses Pools to update, index-aligned with `_members`.
+    /// @param _poolAddresses Pools to update, index-aligned with `_members`.
     /// @param _metadata Off-chain pointer/schema info emitted in the event.
-    function updateMemberUnits(Member[] memory _members, address[] memory _poolAddresses, Metadata calldata _metadata)
+    function updateMemberUnits(Member[] memory _members, address[] memory _poolAddresses, Metadata memory _metadata)
         external
     {
         for (uint256 i; i < _poolAddresses.length;) {

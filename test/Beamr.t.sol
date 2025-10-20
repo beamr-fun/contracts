@@ -45,6 +45,8 @@ contract BeamRTest is Test, Accounts {
     ISuperToken public token;
     IGDAForwader public gdaForwarder;
 
+    IBeamR.Metadata _dummyMD = IBeamR.Metadata({protocol: 1, pointer: "dummy"});
+
     function setUp() public {
         vm.createSelectFork({blockNumber: 33905653, urlOrAlias: "base"});
 
@@ -174,8 +176,10 @@ contract BeamRTest is Test, Accounts {
         address[] memory poolAddresses = new address[](1);
         poolAddresses[0] = address(pool);
 
+        vm.expectEmit(true, true, true, true);
+        emit IBeamR.MemberUnitsUpdated(members, poolAddresses, IBeamR.Action.Update, _dummyMD);
         vm.startPrank(user1());
-        _beamR.updateMemberUnits(members, poolAddresses);
+        _beamR.updateMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -197,8 +201,11 @@ contract BeamRTest is Test, Accounts {
         address[] memory poolAddresses = new address[](1);
         poolAddresses[0] = address(pool);
 
+        vm.expectEmit(true, true, true, true);
+        emit IBeamR.MemberUnitsUpdated(members, poolAddresses, IBeamR.Action.Update, _dummyMD);
+
         vm.startPrank(admin1());
-        _beamR.updateMemberUnits(members, poolAddresses);
+        _beamR.updateMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -230,8 +237,11 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[3] = address(pool);
         poolAddresses[4] = address(pool);
 
+        vm.expectEmit(true, true, true, true);
+        emit IBeamR.MemberUnitsUpdated(members, poolAddresses, IBeamR.Action.Update, _dummyMD);
+
         vm.startPrank(admin1());
-        _beamR.updateMemberUnits(members, poolAddresses);
+        _beamR.updateMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -282,8 +292,11 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[1] = address(pool1);
         poolAddresses[2] = address(pool2);
 
+        vm.expectEmit(true, true, true, true);
+        emit IBeamR.MemberUnitsUpdated(members, poolAddresses, IBeamR.Action.Update, _dummyMD);
+
         vm.startPrank(admin1());
-        _beamR.updateMemberUnits(members, poolAddresses);
+        _beamR.updateMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units in both pools
@@ -314,7 +327,10 @@ contract BeamRTest is Test, Accounts {
 
         // Increase user1's units by 10
 
-        _beamR.increaseMemberUnits(members, poolAddresses);
+        vm.expectEmit(true, true, true, true);
+        emit IBeamR.MemberUnitsUpdated(members, poolAddresses, IBeamR.Action.Increase, _dummyMD);
+
+        _beamR.increaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -348,7 +364,7 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[4] = address(pool);
 
         vm.startPrank(admin1());
-        _beamR.increaseMemberUnits(members, poolAddresses);
+        _beamR.increaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -399,7 +415,7 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[2] = address(pool2);
 
         vm.startPrank(admin1());
-        _beamR.increaseMemberUnits(members, poolAddresses);
+        _beamR.increaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units in both pools
@@ -426,8 +442,11 @@ contract BeamRTest is Test, Accounts {
         address[] memory poolAddresses = new address[](1);
         poolAddresses[0] = address(pool);
 
+        vm.expectEmit(true, true, true, true);
+        emit IBeamR.MemberUnitsUpdated(members, poolAddresses, IBeamR.Action.Decrease, _dummyMD);
+
         vm.startPrank(admin1());
-        _beamR.decreaseMemberUnits(members, poolAddresses);
+        _beamR.decreaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -451,7 +470,7 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[1] = address(pool);
 
         vm.startPrank(admin1());
-        _beamR.decreaseMemberUnits(members, poolAddresses);
+        _beamR.decreaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units
@@ -499,7 +518,7 @@ contract BeamRTest is Test, Accounts {
         poolAddresses[2] = address(pool2);
 
         vm.startPrank(admin1());
-        _beamR.decreaseMemberUnits(members, poolAddresses);
+        _beamR.decreaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         // Verify updated units in both pools
@@ -669,12 +688,12 @@ contract BeamRTest is Test, Accounts {
 
         vm.startPrank(someGuy());
         vm.expectRevert(Unauthorized.selector);
-        _beamR.updateMemberUnits(members, poolAddresses);
+        _beamR.updateMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         vm.startPrank(beamTeam());
         vm.expectRevert(Unauthorized.selector);
-        _beamR.updateMemberUnits(members, poolAddresses);
+        _beamR.updateMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
     }
 
@@ -690,12 +709,12 @@ contract BeamRTest is Test, Accounts {
 
         vm.startPrank(someGuy());
         vm.expectRevert(Unauthorized.selector);
-        _beamR.increaseMemberUnits(members, poolAddresses);
+        _beamR.increaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         vm.startPrank(beamTeam());
         vm.expectRevert(Unauthorized.selector);
-        _beamR.increaseMemberUnits(members, poolAddresses);
+        _beamR.increaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
     }
 
@@ -711,12 +730,12 @@ contract BeamRTest is Test, Accounts {
 
         vm.startPrank(someGuy());
         vm.expectRevert(Unauthorized.selector);
-        _beamR.decreaseMemberUnits(members, poolAddresses);
+        _beamR.decreaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
 
         vm.startPrank(beamTeam());
         vm.expectRevert(Unauthorized.selector);
-        _beamR.decreaseMemberUnits(members, poolAddresses);
+        _beamR.decreaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
     }
 
@@ -732,7 +751,7 @@ contract BeamRTest is Test, Accounts {
 
         vm.startPrank(admin1());
         vm.expectRevert(IBeamR.Underflow.selector);
-        _beamR.decreaseMemberUnits(members, poolAddresses);
+        _beamR.decreaseMemberUnits(members, poolAddresses, _dummyMD);
         vm.stopPrank();
     }
 
