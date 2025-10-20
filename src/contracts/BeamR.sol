@@ -20,8 +20,6 @@ import {IBeamR} from "../interfaces/IBeamR.sol";
 contract BeamR is IBeamR, AccessControl {
     using SuperTokenV1Library for ISuperToken;
 
-    event MemberUnitsChanged();
-
     // ------------------------
     // ------ Constants -------
     // ------------------------
