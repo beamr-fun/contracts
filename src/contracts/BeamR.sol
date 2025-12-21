@@ -44,7 +44,7 @@ contract BeamR is IBeamR, Initializable, OwnableUpgradeable, UUPSUpgradeable, Ac
 
     function initialize(address[] memory _admins, address[] memory _rootAdmins) public initializer {
         // Run event first to ensure indexers can easily match it
-        emit Initialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
+        emit BeamrInitialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
 
         for (uint256 i; i < _admins.length;) {
             _grantRole(ADMIN_ROLE, _admins[i]);

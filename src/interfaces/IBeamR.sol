@@ -44,7 +44,7 @@ interface IBeamR {
     /// @notice Emitted when the contract is initialized.
     /// @param adminRole The ADMIN_ROLE role id.
     /// @param rootAdminRole The ROOT_ADMIN_ROLE role id.
-    event Initialized(bytes32 adminRole, bytes32 rootAdminRole);
+    event BeamrInitialized(bytes32 adminRole, bytes32 rootAdminRole);
 
     /// @notice Emitted when a new pool is created.
     /// @param pool The pool address.
