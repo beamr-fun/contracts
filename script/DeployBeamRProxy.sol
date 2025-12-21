@@ -5,12 +5,13 @@ import {Script, console2} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {BeamR} from "../src/contracts/BeamR.sol";
 
-contract Deploy is Script {
+contract DeployBeamRProxy is Script {
     function run() public {
-        // THIS IS FOR TESTNET ONLY
-
         uint256 deployerPrivateKey = vm.envUint("PRI_K");
 
+        vm.startBroadcast(deployerPrivateKey);
+
+        BeamR implementation = new BeamR();
         address[] memory admins = new address[](2);
         address[] memory rootAdmins = new address[](1);
 
@@ -19,15 +20,14 @@ contract Deploy is Script {
 
         rootAdmins[0] = vm.envAddress("DEV_PUB_K");
 
-        address beamRAddress;
-        vm.startBroadcast(deployerPrivateKey);
+        string memory initSig = "initialize(address[],address[])";
+        bytes memory initCalldata = abi.encodeWithSignature(initSig, admins, rootAdmins);
 
-        BeamR _beamR = new BeamR({_admins: admins, _rootAdmins: rootAdmins});
-
-        beamRAddress = address(_beamR);
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initCalldata);
 
         vm.stopBroadcast();
 
-        console2.log("BeamR deployed at:", beamRAddress);
+        console2.log("BeamR implementation deployed at:", address(implementation));
+        console2.log("BeamR proxy deployed at:", address(proxy));
     }
 }
