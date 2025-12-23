@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {
     PoolConfig,
     PoolERC20Metadata
@@ -17,7 +20,7 @@ import {IBeamR} from "../interfaces/IBeamR.sol";
 /// @title BeamR – Superfluid pool factory & per-pool admin manager
 /// @author Jord
 /// @notice Creates Superfluid pools manages pool-specific admin roles.
-contract BeamR is IBeamR, AccessControl {
+contract BeamR is IBeamR, Initializable, OwnableUpgradeable, UUPSUpgradeable, AccessControlUpgradeable {
     using SuperTokenV1Library for ISuperToken;
 
     // ------------------------
@@ -35,9 +38,13 @@ contract BeamR is IBeamR, AccessControl {
     // -------- Init  ---------
     // ------------------------
 
-    constructor(address[] memory _admins, address[] memory _rootAdmins) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address[] memory _admins, address[] memory _rootAdmins) public initializer {
         // Run event first to ensure indexers can easily match it
-        emit Initialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
+        emit BeamrInitialized(ADMIN_ROLE, ROOT_ADMIN_ROLE);
 
         for (uint256 i; i < _admins.length;) {
             _grantRole(ADMIN_ROLE, _admins[i]);
@@ -55,6 +62,9 @@ contract BeamR is IBeamR, AccessControl {
                 i++;
             }
         }
+
+        __Ownable_init();
+        __UUPSUpgradeable_init();
     }
 
     // ------------------------
@@ -235,4 +245,6 @@ contract BeamR is IBeamR, AccessControl {
     function poolAdminKey(address _poolAddress) public pure returns (bytes32) {
         return keccak256(abi.encodePacked("POOL_MANAGER", _poolAddress));
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

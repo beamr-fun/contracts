@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {BeamR} from "../src/contracts/BeamR.sol";
 import {IBeamR} from "../src/interfaces/IBeamR.sol";
 import {Accounts} from "./setup/Accounts.sol";
@@ -56,7 +57,12 @@ contract BeamRTest is Test, Accounts {
         poolAdmins[0] = admin1(); // Replace with actual pool admin address
         rootAdmins[0] = beamTeam(); // Replace with actual root admin address
 
-        _beamR = new BeamR(poolAdmins, rootAdmins);
+        BeamR implementation = new BeamR();
+        string memory initSig = "initialize(address[],address[])";
+        bytes memory initCalldata = abi.encodeWithSignature(initSig, poolAdmins, rootAdmins);
+
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initCalldata);
+        _beamR = BeamR(address(proxy));
 
         assertTrue(_beamR.hasRole(_beamR.ADMIN_ROLE(), admin1()));
         assertTrue(_beamR.hasRole(_beamR.ROOT_ADMIN_ROLE(), beamTeam()));
